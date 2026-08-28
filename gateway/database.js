@@ -1,25 +1,20 @@
-import Database from "better-sqlite3";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import "dotenv/config";
+import pg from "pg";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { Pool } = pg;
 
-const dataDirectory = path.join(__dirname, "..", "data");
-
-if (!fs.existsSync(dataDirectory)) {
-  fs.mkdirSync(dataDirectory, { recursive: true });
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is missing from environment variables.");
 }
 
-const dbPath = path.join(dataDirectory, "gateway.db");
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
 
-export const db = new Database(dbPath);
-
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
-
-db.exec(`
+await pool.query(`
   CREATE TABLE IF NOT EXISTS tasks (
     task_id TEXT PRIMARY KEY,
     client_address TEXT NOT NULL,
@@ -37,55 +32,65 @@ db.exec(`
   );
 `);
 
-export function createTask(task) {
-  db.prepare(`
-    INSERT INTO tasks (
-      task_id,
-      client_address,
-      task,
-      required_payment,
-      decimals,
-      token,
-      network,
-      status,
-      created_at
-    )
-    VALUES (
-      @taskId,
-      @clientAddress,
-      @task,
-      @requiredPayment,
-      @decimals,
-      @token,
-      @network,
-      @status,
-      @createdAt
-    )
-  `).run(task);
+export const db = pool;
+
+export async function createTask(task) {
+  await pool.query(
+    `
+      INSERT INTO tasks (
+        task_id,
+        client_address,
+        task,
+        required_payment,
+        decimals,
+        token,
+        network,
+        status,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `,
+    [
+      task.taskId,
+      task.clientAddress,
+      task.task,
+      task.requiredPayment,
+      task.decimals,
+      task.token,
+      task.network,
+      task.status,
+      task.createdAt,
+    ]
+  );
 }
 
-export function getTask(taskId) {
-  return db.prepare(`
-    SELECT
-      task_id AS taskId,
-      client_address AS clientAddress,
-      task,
-      required_payment AS requiredPayment,
-      decimals,
-      token,
-      network,
-      status,
-      created_at AS createdAt,
-      payment_json AS paymentJson,
-      result,
-      model,
-      completed_at AS completedAt
-    FROM tasks
-    WHERE task_id = ?
-  `).get(taskId);
+export async function getTask(taskId) {
+  const result = await pool.query(
+    `
+      SELECT
+        task_id AS "taskId",
+        client_address AS "clientAddress",
+        task,
+        required_payment AS "requiredPayment",
+        decimals,
+        token,
+        network,
+        status,
+        created_at AS "createdAt",
+        payment_json AS "paymentJson",
+        result,
+        model,
+        completed_at AS "completedAt"
+      FROM tasks
+      WHERE task_id = $1
+    `,
+    [taskId]
+  );
+
+  return result.rows[0];
 }
 
-export function updateTask(taskId, updates) {
+export async function updateTask(taskId, updates) {
   const allowedFields = {
     status: "status",
     payment: "payment_json",
@@ -95,27 +100,39 @@ export function updateTask(taskId, updates) {
   };
 
   const fields = [];
-  const values = { taskId };
+  const values = [];
+  let parameterIndex = 1;
 
   for (const [key, value] of Object.entries(updates)) {
     if (!(key in allowedFields)) continue;
 
-    fields.push(`${allowedFields[key]} = @${key}`);
-    values[key] =
+    fields.push(
+      `${allowedFields[key]} = $${parameterIndex}`
+    );
+
+    values.push(
       key === "payment"
         ? JSON.stringify(value)
-        : value;
+        : value
+    );
+
+    parameterIndex++;
   }
 
   if (fields.length === 0) return;
 
-  db.prepare(`
-    UPDATE tasks
-    SET ${fields.join(", ")}
-    WHERE task_id = @taskId
-  `).run(values);
+  values.push(taskId);
+
+  await pool.query(
+    `
+      UPDATE tasks
+      SET ${fields.join(", ")}
+      WHERE task_id = $${parameterIndex}
+    `,
+    values
+  );
 }
 
-export function closeDatabase() {
-  db.close();
+export async function closeDatabase() {
+  await pool.end();
 }

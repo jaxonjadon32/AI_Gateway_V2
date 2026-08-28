@@ -106,7 +106,7 @@ app.post("/tasks", async (req, res) => {
       createdAt: new Date().toISOString(),
     };
 
-    createTask(taskRecord);
+    await createTask(taskRecord);
 
     res.status(201).json(taskRecord);
   } catch (error) {
@@ -119,7 +119,7 @@ app.post("/tasks", async (req, res) => {
 app.get("/tasks/:taskId", async (req, res) => {
   try {
     const { taskId } = req.params;
-    const task = getTask(taskId);
+    const task = await getTask(taskId);
 
     if (!task) {
       return res.status(404).json({
@@ -166,7 +166,7 @@ app.post("/payments/verify", async (req, res) => {
       });
     }
 
-    const task = getTask(taskId);
+    const task = await getTask(taskId);
 
     if (!task) {
       return res.status(404).json({
@@ -231,7 +231,7 @@ app.post("/tasks/:taskId/execute", async (req, res) => {
   try {
     const { taskId } = req.params;
 
-    const task = getTask(taskId);
+    const task = await getTask(taskId);
 
     if (!task) {
       return res.status(404).json({
@@ -253,7 +253,7 @@ app.post("/tasks/:taskId/execute", async (req, res) => {
     }
 
 
-    updateTask(taskId, { status: "processing" });
+    await updateTask(taskId, { status: "processing" });
 
     const aiResult = await runAI(task.task);
 
@@ -279,10 +279,10 @@ app.post("/tasks/:taskId/execute", async (req, res) => {
       model: task.model,
     });
   } catch (error) {
-    const task = getTask(req.params.taskId);
+    const task = await getTask(req.params.taskId);
 
     if (task && task.status === "processing") {
-      updateTask(req.params.taskId, { status: "paid" });
+      await updateTask(req.params.taskId, { status: "paid" });
     }
 
     res.status(500).json({
@@ -301,6 +301,12 @@ app.listen(PORT, () => {
   console.log("AI: Gemini");
   console.log("Status: ONLINE");
 });
+
+
+
+
+
+
 
 
 
