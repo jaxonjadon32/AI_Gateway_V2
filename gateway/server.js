@@ -91,7 +91,7 @@ app.get("/", (req, res) => {
   res.json({
     name: "AI Agent Gateway",
     version: "2.0.0",
-    network: "Ethereum Sepolia",
+    network: "Ethereum Mainnet",
     token: "AIGN",
     contract: "0xbb534032083787277A0f254D7066Cb3144Cd5980",
     status: "online",
@@ -105,7 +105,7 @@ app.get("/health", async (req, res) => {
     res.json({
       status: "healthy",
       blockchain: "connected",
-      network: "Ethereum Sepolia",
+      network: "Ethereum Mainnet",
       token: info.symbol,
       contract: info.contract,
     });
@@ -184,7 +184,7 @@ app.post(
         requiredPayment: info.minimumPayment,
         decimals: info.decimals,
         token: info.symbol,
-        network: "sepolia",
+        network: "mainnet",
         status: "awaiting_payment",
         createdAt: new Date().toISOString(),
       };
@@ -469,4 +469,6 @@ app.listen(PORT, () => {
   console.log("Authentication: API key");
   console.log("Status: ONLINE");
 });
+
+
 
