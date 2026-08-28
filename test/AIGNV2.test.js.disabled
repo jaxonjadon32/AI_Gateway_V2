@@ -1,0 +1,173 @@
+```javascript
+import { expect } from "chai";
+import hre from "hardhat";
+
+const { ethers } = await hre.network.connect();
+
+describe("AIGNV2", function () {
+  let token;
+  let owner;
+  let user;
+  let recipient;
+
+  const ONE_AIGN = ethers.parseUnits("1", 18);
+  const HALF_AIGN = ethers.parseUnits("0.5", 18);
+  const TOTAL_SUPPLY = ethers.parseUnits("100000000", 18);
+
+  beforeEach(async function () {
+    [owner, user, recipient] = await ethers.getSigners();
+
+    const AIGNV2 = await ethers.getContractFactory("AIGNV2");
+
+    token = await AIGNV2.deploy(owner.address);
+    await token.waitForDeployment();
+  });
+
+  it("creates exactly 100 million AIGN", async function () {
+    expect(await token.totalSupply()).to.equal(TOTAL_SUPPLY);
+  });
+
+  it("uses 18 decimals", async function () {
+    expect(await token.decimals()).to.equal(18n);
+  });
+
+  it("gives the entire supply to the owner", async function () {
+    expect(await token.balanceOf(owner.address)).to.equal(TOTAL_SUPPLY);
+  });
+
+  it("supports normal ERC-20 transfers", async function () {
+    await token.transfer(user.address, ONE_AIGN);
+
+    expect(await token.balanceOf(user.address)).to.equal(ONE_AIGN);
+  });
+
+  it("supports approve and allowance", async function () {
+    await token.approve(user.address, ONE_AIGN);
+
+    expect(
+      await token.allowance(owner.address, user.address)
+    ).to.equal(ONE_AIGN);
+  });
+
+  it("supports transferFrom", async function () {
+    await token.approve(user.address, ONE_AIGN);
+
+    await token.connect(user).transferFrom(
+      owner.address,
+      recipient.address,
+      ONE_AIGN
+    );
+
+    expect(
+      await token.balanceOf(recipient.address)
+    ).to.equal(ONE_AIGN);
+  });
+
+  it("rejects task payments below 0.5 AIGN", async function () {
+    await token.transfer(user.address, ONE_AIGN);
+
+    try {
+      await token.connect(user).payForAITask(
+        ethers.parseUnits("0.49", 18),
+        "TEST_TASK_001"
+      );
+
+      throw new Error("Expected PaymentTooSmall() revert");
+    } catch (error) {
+      expect(error.message).to.include("PaymentTooSmall");
+    }
+  });
+
+  it("processes a valid AI task payment", async function () {
+    await token.transfer(user.address, ONE_AIGN);
+
+    const tx = await token.connect(user).payForAITask(
+      HALF_AIGN,
+      "TEST_TASK_001"
+    );
+
+    const receipt = await tx.wait();
+
+    expect(receipt.status).to.equal(1);
+
+    expect(
+      await token.balanceOf(owner.address)
+    ).to.equal(TOTAL_SUPPLY - HALF_AIGN);
+
+    expect(
+      await token.balanceOf(user.address)
+    ).to.equal(HALF_AIGN);
+  });
+
+  it("rejects the same task ID twice", async function () {
+    await token.transfer(user.address, ONE_AIGN);
+
+    await token.connect(user).payForAITask(
+      HALF_AIGN,
+      "TEST_TASK_001"
+    );
+
+    try {
+      await token.connect(user).payForAITask(
+        HALF_AIGN,
+        "TEST_TASK_001"
+      );
+
+      throw new Error("Expected TaskAlreadyProcessed() revert");
+    } catch (error) {
+      expect(error.message).to.include("TaskAlreadyProcessed");
+    }
+  });
+
+  it("rejects an empty task ID", async function () {
+    await token.transfer(user.address, ONE_AIGN);
+
+    try {
+      await token.connect(user).payForAITask(
+        HALF_AIGN,
+        ""
+      );
+
+      throw new Error("Expected InvalidTaskId() revert");
+    } catch (error) {
+      expect(error.message).to.include("InvalidTaskId");
+    }
+  });
+
+  it("can pause task payments", async function () {
+    await token.transfer(user.address, ONE_AIGN);
+    await token.pause();
+
+    try {
+      await token.connect(user).payForAITask(
+        HALF_AIGN,
+        "PAUSED_TASK"
+      );
+
+      throw new Error("Expected paused transaction to revert");
+    } catch (error) {
+      expect(error.message).to.include("EnforcedPause");
+    }
+  });
+
+  it("can unpause task payments", async function () {
+    await token.pause();
+    await token.unpause();
+
+    await token.transfer(user.address, ONE_AIGN);
+
+    const tx = await token.connect(user).payForAITask(
+      HALF_AIGN,
+      "UNPAUSED_TASK"
+    );
+
+    const receipt = await tx.wait();
+
+    expect(receipt.status).to.equal(1);
+  });
+
+  it("does not allow additional minting", async function () {
+    expect(await token.totalSupply()).to.equal(TOTAL_SUPPLY);
+  });
+});
+```
