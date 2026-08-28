@@ -1,13 +1,13 @@
 import "dotenv/config";
 import { ethers } from "ethers";
 
-const RPC_URL = process.env.SEPOLIA_RPC_URL;
+const RPC_URL = process.env.MAINNET_RPC_URL;
 
 const CONTRACT_ADDRESS =
   "0xbb534032083787277A0f254D7066Cb3144Cd5980";
 
 if (!RPC_URL) {
-  throw new Error("SEPOLIA_RPC_URL is missing from .env");
+  throw new Error("MAINNET_RPC_URL is missing from environment variables.");
 }
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -169,3 +169,4 @@ export async function verifyPayment(
     taskId: expectedTaskId,
   };
 }
+

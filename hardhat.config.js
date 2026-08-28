@@ -3,6 +3,7 @@ import hardhatMocha from "@nomicfoundation/hardhat-mocha";
 import "dotenv/config";
 
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL;
+const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 export default {
@@ -17,6 +18,12 @@ export default {
       url: SEPOLIA_RPC_URL,
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
     },
+
+    mainnet: {
+      type: "http",
+      chainId: 1,
+      url: MAINNET_RPC_URL,
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+    },
   },
 };
-
