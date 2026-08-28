@@ -199,7 +199,7 @@ app.post("/payments/verify", async (req, res) => {
       return res.status(400).json(result);
     }
 
-    updateTask(taskId, {
+    await updateTask(taskId, {
       status: "paid",
       payment: result,
     });
@@ -259,7 +259,7 @@ app.post("/tasks/:taskId/execute", async (req, res) => {
 
     const completedAt = new Date().toISOString();
 
-    updateTask(taskId, {
+    await updateTask(taskId, {
       status: "completed",
       result: aiResult.result,
       model: aiResult.model,
@@ -301,6 +301,7 @@ app.listen(PORT, () => {
   console.log("AI: Gemini");
   console.log("Status: ONLINE");
 });
+
 
 
 
