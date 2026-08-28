@@ -463,7 +463,7 @@ app.listen(PORT, () => {
   console.log("AI Agent Gateway");
   console.log("=================================");
   console.log(`Server: http://localhost:${PORT}`);
-  console.log("Network: Ethereum Sepolia");
+  console.log("Network: Ethereum Mainnet");
   console.log("Token: AIGN");
   console.log("AI: Gemini");
   console.log("Authentication: API key");
